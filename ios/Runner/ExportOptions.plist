@@ -4,8 +4,6 @@
 <dict>
 	<key>method</key>
 	<string>app-store</string>
-	<key>teamID</key>
-	<string>TUBBTSR2F6</string>
 	<key>signingStyle</key>
 	<string>manual</string>
 	<key>provisioningProfiles</key>
