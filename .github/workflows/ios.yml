@@ -23,7 +23,7 @@ jobs:
         run: flutter build ios --release --no-codesign
 
       - name: Create P12 file
-        run: openssl pkcs12 -export -out certificate.p12 -inkey ${{ secrets.IOS_CERTIFICATE_KEY }} -in ${{ secrets.IOS_CERTIFICATE }} -password pass:${{ secrets.IOS_CERTIFICATE_PASSWORD }}
+        run: echo ${{ secrets.IOS_CERTIFICATE }} | base64 --decode > certificate.p12
 
       - name: Create provisioning profile
         run: echo ${{ secrets.IOS_PROVISIONING_PROFILE }} | base64 --decode > profile.mobileprovision
