@@ -22,19 +22,29 @@ jobs:
       - name: Build iOS app
         run: flutter build ios --release --no-codesign
 
-      - name: Create unsigned IPA
-        run: xcodebuild -exportArchive -archivePath "build/ios/iphoneos/Runner.app" -exportPath "build/ios/ipa" -exportOptionsPlist "ios/Runner/exportOptions.plist"
+      - name: Create P12 file
+        run: openssl pkcs12 -export -out certificate.p12 -inkey ${{ secrets.IOS_CERTIFICATE_KEY }} -in ${{ secrets.IOS_CERTIFICATE }} -password pass:${{ secrets.IOS_CERTIFICATE_PASSWORD }}
 
-      - name: Sign IPA with certificate and provisioning profile
-        run: |
-          echo ${{ secrets.IOS_CERTIFICATE }} | base64 --decode > certificate.p12
-          security create-keychain -p "build" ios-build.keychain
-          security import certificate.p12 -k ~/Library/Keychains/ios-build.keychain -P ${{ secrets.IOS_CERTIFICATE_PASSWORD }} -T /usr/bin/codesign
-          security set-key-partition-list -S apple-tool:,apple: -s -k "build" ios-build.keychain
-          security find-identity -v -p codesigning ~/Library/Keychains/ios-build.keychain
-          security unlock-keychain -p "build" ~/Library/Keychains/ios-build.keychain
-          codesign --force --sign "${{ secrets.IOS_CERTIFICATE_NAME }}" --timestamp=none "build/ios/ipa/Runner.app"
-          xcrun --sdk iphoneos PackageApplication -v "build/ios/ipa/Runner.app" -o "build/ios/ipa/Runner.ipa" --embed "${{ secrets.IOS_PROVISIONING_PROFILE }}"
+      - name: Create provisioning profile
+        run: echo ${{ secrets.IOS_PROVISIONING_PROFILE }} | base64 --decode > profile.mobileprovision
+
+      - name: Sign IPA
+        run: xcodebuild -exportArchive -archivePath Runner.xcarchive -exportPath Runner.ipa -exportOptionsPlist ExportOptions.plist CODE_SIGN_STYLE="Manual" CODE_SIGN_IDENTITY="${{ secrets.IOS_CERTIFICATE_IDENTITY }}" PROVISIONING_PROFILE_SPECIFIER="${{ secrets.IOS_PROVISIONING_PROFILE_NAME }}"
+
+
+#      - name: Create unsigned IPA
+#        run: xcodebuild -exportArchive -archivePath "build/ios/iphoneos/Runner.app" -exportPath "build/ios/ipa" -exportOptionsPlist "ios/Runner/exportOptions.plist"
+#
+#      - name: Sign IPA with certificate and provisioning profile
+#        run: |
+#          echo ${{ secrets.IOS_CERTIFICATE }} | base64 --decode > certificate.p12
+#          security create-keychain -p "build" ios-build.keychain
+#          security import certificate.p12 -k ~/Library/Keychains/ios-build.keychain -P ${{ secrets.IOS_CERTIFICATE_PASSWORD }} -T /usr/bin/codesign
+#          security set-key-partition-list -S apple-tool:,apple: -s -k "build" ios-build.keychain
+#          security find-identity -v -p codesigning ~/Library/Keychains/ios-build.keychain
+#          security unlock-keychain -p "build" ~/Library/Keychains/ios-build.keychain
+#          codesign --force --sign "${{ secrets.IOS_CERTIFICATE_NAME }}" --timestamp=none "build/ios/ipa/Runner.app"
+#          xcrun --sdk iphoneos PackageApplication -v "build/ios/ipa/Runner.app" -o "build/ios/ipa/Runner.ipa" --embed "${{ secrets.IOS_PROVISIONING_PROFILE }}"
 
 #      - name: Upload to Firebase App Distribution
 #        uses: wzieba/Firebase-Distribution-Github-Action@v1
