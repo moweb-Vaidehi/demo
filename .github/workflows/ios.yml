@@ -1,0 +1,46 @@
+name: Build and distribute iOS app
+
+on:
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  build_and_distribute:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v1
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build iOS app
+        run: flutter build ios --release --no-codesign
+
+      - name: Create unsigned IPA
+        run: xcodebuild -exportArchive -archivePath "build/ios/archive/Runner.xcarchive" -exportPath "build/ios/ipa" -exportOptionsPlist "ios/exportOptions.plist"
+
+      - name: Sign IPA with certificate and provisioning profile
+        run: |
+          echo ${{ secrets.IOS_CERTIFICATE }} | base64 --decode > certificate.p12
+          security create-keychain -p "build" ios-build.keychain
+          security import certificate.p12 -k ~/Library/Keychains/ios-build.keychain -P ${{ secrets.IOS_CERTIFICATE_PASSWORD }} -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k "build" ios-build.keychain
+          security find-identity -v -p codesigning ~/Library/Keychains/ios-build.keychain
+          security unlock-keychain -p "build" ~/Library/Keychains/ios-build.keychain
+          codesign --force --sign "${{ secrets.IOS_CERTIFICATE_NAME }}" --timestamp=none "build/ios/ipa/Runner.app"
+          xcrun --sdk iphoneos PackageApplication -v "build/ios/ipa/Runner.app" -o "build/ios/ipa/Runner.ipa" --embed "${{ secrets.IOS_PROVISIONING_PROFILE }}"
+
+      - name: Upload to Firebase App Distribution
+        uses: wzieba/Firebase-Distribution-Github-Action@v1
+        with:
+          appId: ${{secrets.FIREBASE_APP_ID}}
+          token: ${{secrets.FIREBASE_TOKEN}}
+          releaseNotes: "This is a release for version 1.0"
+          groups: "testers"
+          apkPath: "build/ios/ipa/Runner.ipa"
