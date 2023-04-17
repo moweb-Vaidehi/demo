@@ -22,14 +22,15 @@ jobs:
       - name: Build iOS app
         run: flutter build ios --release --no-codesign
 
-      - name: Create P12 file
-        run: echo ${{ secrets.IOS_CERTIFICATE }} | base64 --decode > certificate.p12
+      - name: Build resolve Swift dependencies
+        run: xcodebuild -resolvePackageDependencies -workspace ios/Runner.xcworkspace -scheme Runner -configuration Release
 
-      - name: Create provisioning profile
-        run: echo ${{ secrets.IOS_PROVISIONING_PROFILE }} | base64 --decode > profile.mobileprovision
+      - name: Build xArchive
+        run: |
+           xcodebuild -workspace ios/Runner.xcworkspace -scheme Runner -configuration Release DEVELOPMENT_TEAM=TUBBTSR2F6 -sdk 'iphoneos' -destination 'generic/platform=iOS' -archivePath build-output/app.xcarchive PROVISIONING_PROFILE=${{ secrets.IOS_PROVISIONING_PROFILE }} clean archive 
 
-      - name: Sign IPA
-        run: xcodebuild -exportArchive -archivePath Runner.xcarchive -exportPath Runner.ipa -exportOptionsPlist ExportOptions.plist CODE_SIGN_STYLE="Manual" CODE_SIGN_IDENTITY="${{ secrets.IOS_CERTIFICATE_IDENTITY }}" PROVISIONING_PROFILE_SPECIFIER="${{ secrets.IOS_PROVISIONING_PROFILE_NAME }}"
+      - name: Export ipa
+        run: xcodebuild -exportArchive -archivePath build-output/app.xcarchive -exportPath build-output/ios -exportOptionsPlist ios/ExportOptions.plist
 
 
 #      - name: Create unsigned IPA
